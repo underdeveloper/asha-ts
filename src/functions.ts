@@ -1,6 +1,7 @@
-import Discord = require("discord.js");
-import BotConf = require("./botconf.json");
-import Canvas = require("canvas");
+import Discord from "discord.js";
+import BotConf from "./botconf.json";
+import Canvas from "canvas";
+import Sequelize from "sequelize";
 
 // Local functions.
 
@@ -34,6 +35,7 @@ function testWhite (str: string): boolean {
     return white.test(str.charAt(0));
 }
 
+/** Applies text to a Canvas canvas and ensmallens the text if it is too long. */
 function applyText
     (canvas: Canvas.Canvas, inputtext: string, 
     defaultFontSize: number = 30, defaultType: string = 'sans-serif', 
@@ -55,9 +57,54 @@ function applyText
     return ctx.font;
 };
 
+/** Given a long text, splits it up into an array of "pages" made up of embeds with certain lines of the text. */
+function embedPager
+    (
+        client: Discord.Client, msg: Discord.Message, 
+        fulltext: string, title: string,
+        perPageRequested: number = 12, delimiter: string = '\n',
+        author: Discord.User = msg.author
+    ) : Discord.MessageEmbed[] {
+    
+    if (fulltext.length < 1) return [];
+
+    /** How many lines there are per text. */
+    var perPageActual = perPageRequested < 8 ? 8 : (perPageRequested > 20 ? 20 : perPageRequested);
+    /** The given text split based on the given delimiter. */
+    var lines = fulltext.split(delimiter);
+    /** Array of all the pages */
+    var pageArray: string[] = [], page: string = ``, i: number;
+
+    for (i = 0; i < lines.length; i++) {
+        page += lines[i] + `\n`;
+        if (i % perPageActual === (perPageActual - 1)) {
+            pageArray.push(page);
+            page = ``;
+        } else if (i === lines.length - 1) {
+            pageArray.push(page);
+        };
+    };
+
+    /** Array of all the pages, in embed form. */
+    var embedPageArray: Discord.MessageEmbed[] = []
+    
+    for (i = 0; i < pageArray.length; i++) {
+        var pageEmbed = new Discord.MessageEmbed()
+            .setTitle(title)
+            .setDescription(pageArray[i])
+            .setFooter(`Page ${i + 1}/${pageArray.length}`)
+            .setColor(BotConf.embedColour)
+            .setAuthor(author.username, author.avatarURL());
+        embedPageArray.push(pageEmbed);
+    };
+
+    return embedPageArray;
+}
+
 // Exported functions.
 
-export async function caption(client: Discord.Client, msg: Discord.Message, args: string[], spoiler: Boolean): Promise<void> {
+/** Adds a black arial text caption onto an image sent by the requester. */
+export async function caption (client: Discord.Client, msg: Discord.Message, args: string[], spoiler: Boolean): Promise<void> {
     var text = args.join(' ');
     text = wordWrap(text, 40);
 
@@ -94,6 +141,228 @@ export async function caption(client: Discord.Client, msg: Discord.Message, args
     var attachment = new Discord.MessageAttachment(canvas.toBuffer(), `${spoiler?`SPOILER_`:``}memefuny.png`);
     await msg.channel.send(`<@${msg.author.id}>`, attachment);
 
-    if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({ reason: "Bot delete message A-NNA" }).catch(console.error);
+    if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({ reason: "A-NNA" }).catch(console.error);
     return;
-}
+};
+
+export async function pager
+    (
+        client: Discord.Client,
+        msg: Discord.Message,
+        pageArray: Array<any>
+    ) {
+    var page = 0;
+    msg.channel.send((pageArray[page]))
+        .then(async react_msg => {
+            // Reacts to the initial page with menu options
+            /** Menu options, array of emojis. */
+            const menu: string[] = ['⬅', '➡', '❌', '⏹️'];
+            menu.forEach(emoji => react_msg.react(emoji).catch(console.error));
+            // Creates a filter for when the user is NOT a bot and reacts with appropriate emojis
+            const filter = (reaction: Discord.MessageReaction, user: Discord.User) => (user.id === msg.author.id) && (menu.includes(reaction.emoji.name));
+            // Collectors. I fucking hate javascript.
+            var stop = 0; // 0 => deletes message, 1 => stops paginator (does not delete)
+            const collector = new Discord.ReactionCollector(react_msg, filter, { time: 120000, dispose: true });
+            collector.on("collect", (reaction: Discord.MessageReaction, user: Discord.User) => {
+                switch (reaction.emoji.name) {
+                    case '⬅':
+                        if (page === 0) { page = pageArray.length - 1 } else { page = page - 1 };
+                        react_msg.edit(pageArray[page]);
+                        reaction.users.remove(msg.author);
+                        break;
+                    case '➡':
+                        if (page === pageArray.length - 1) { page = 0 } else { page = page + 1 };
+                        react_msg.edit(pageArray[page]);
+                        reaction.users.remove(msg.author);
+                        break;
+                    case '⏹️':
+                        stop = 1;
+                    case '❌':
+                        if (user === msg.author) collector.stop();
+                        break;
+                    default:
+                        return;
+                };
+            });
+            collector.on("end", async () => {
+                if (stop === 1) {
+                    return react_msg.reactions.removeAll();
+                } else {
+                    react_msg.reactions.removeAll();
+                    react_msg.react(client.emojis.cache.find(emoji => emoji.name === "peepoLeave"));
+                    // react_msg.edit(`${msg.member.displayName} called \`${msg.content}\` here.`)
+                    return react_msg.delete({ timeout: 5000 });
+                }
+            });
+        });
+};
+
+
+// The wonderful world of tags.
+
+export async function tagFetch
+    (
+        msg: Discord.Message, args: string[], 
+    /** Table to be looked through. */ tags: Sequelize.ModelCtor<Sequelize.Model<any, any>>
+    ) {
+
+    const tag = await tags.findOne({ where: { name: args[0] } });
+    if (!tag) {
+        return msg.channel.send(`I could not find \`${args[0]}\` in the list.`)
+            .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+    } else {
+        tag.increment('usage_count');
+        return msg.channel.send(tag.get('content'));
+    };
+
+};
+
+export async function tagAdd
+    (
+        msg: Discord.Message, args: string[], 
+    /** Table to be looked through. */ tags: Sequelize.ModelCtor<Sequelize.Model<any, any>>
+    ) {
+    
+    /** Name of the tag to be added. */
+    var tagName = args[0];
+    args.shift();
+
+    if (args.length < 1) {
+        msg.channel.send(`Can't do that, mate. The text you sent is literally empty.`)
+            .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+        return;
+    };
+    try {
+        const tag = await tags.create({
+            name: tagName,
+            content: args.join(' '),
+            authorid: msg.author.id,
+            created_at: msg.createdAt
+        });
+        return msg.channel.send(`Your new tag \`${tag.get('name')}\` has been added!`);
+    }
+    catch (e) {
+        if (e.name === 'SequelizeUniqueConstraintError') {
+            return msg.channel.send('That tag already exists.')
+                .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+        }
+        else {
+            console.log(e);
+            return msg.channel.send('Something went wrong with adding that.')
+                .then(reply => reply.delete({ timeout: 7500, reason: "A-DBE" }));
+        }
+    }
+};
+
+export async function tagEdit
+    (
+        msg: Discord.Message, args: string[],
+    /** Table to be looked through. */ tags: Sequelize.ModelCtor<Sequelize.Model<any, any>>
+    ) {
+
+    /** Name of the tag to be edited. */
+    var tagName = args[0];
+    args.shift();
+
+    if (args.length < 1) {
+        msg.channel.send(`Can't do that, mate. If you want to delete the tag, try \`${BotConf.prefix}tag -delete ${tagName}\`.`)
+            .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+        return;
+    };
+    try {
+        const affectedRows = await tags.update({ content: args.join(' ') }, { where: { name: tagName, authorid: msg.author.id } });
+        if (affectedRows[0] > 0) {
+            return msg.channel.send(`Your tag \`${tagName}\` has been adjusted!`);
+        } else {
+            return msg.channel.send(`There is no tag called \`${tagName}\`, or if there is, you do not own it.`)
+                .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+        }
+    }
+    catch {
+        return msg.channel.send('Something went wrong with editing that.')
+            .then(reply => reply.delete({ timeout: 7500, reason: "A-DBE" }));
+    }
+};
+
+export async function tagDelete
+    (
+        msg: Discord.Message, args: string[],
+    /** Table to be looked through. */ tags: Sequelize.ModelCtor<Sequelize.Model<any, any>>
+    ) {
+
+    /** Name of the tag to be deleted. */
+    var tagName = args[0];
+
+    try {
+        const affectedRows = await tags.destroy({ where: { name: tagName, authorid: msg.author.id } });
+        if (affectedRows > 0) {
+            return msg.channel.send(`Your tag \`${tagName}\` has been deleted.`);
+        } else {
+            return msg.channel.send(`There is no tag called \`${tagName}\`, or if there is, you do not own it.`)
+                .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+        }
+    }
+    catch {
+        return msg.channel.send('Something went wrong with editing that.')
+            .then(reply => reply.delete({ timeout: 7500, reason: "A-DBE" }));
+    }
+};
+
+export async function tagList
+    (
+        client: Discord.Client,
+        msg: Discord.Message, args: string[],
+    /** Table to be looked through. */ tags: Sequelize.ModelCtor<Sequelize.Model<any, any>>
+    ) {
+    const tagList = await tags.findAll({ attributes: ['name'] });
+    const tagArray = tagList.map(t => t.get('name')) || [];
+    if (tagArray.length < 1) {
+        msg.channel.send("There's no tags yet.")
+            .then(reply => reply.delete({ timeout: 7500, reason: "Bot error A-NNA" }));
+        return;
+    }
+    var tagsStr = `This is a list of all tags stored in my database:\n`, i = 0;
+    for (i; i < tagArray.length; i++) {
+        var tag = await tags.findOne({ where: { name: tagArray[i] } });
+        // (made by ${msg.guild.members.cache.find(member => member.id == tag.get('authorid')).user.username})
+        // ^ used to find the username of the tagmaker
+        tagsStr += `- ${tagArray[i]}${i === tagArray.length - 1 ? '' : '\n'}`
+    }
+    var tagPages = embedPager(client, msg, tagsStr, "Global tag list.", 10, '\n');
+    pager(client, msg, tagPages);
+    return;
+};
+
+export async function tagInfo
+    (
+        client: Discord.Client,
+        msg: Discord.Message, args: string[],
+    /** Table to be looked through. */ tags: Sequelize.ModelCtor<Sequelize.Model<any, any>>
+    ) {
+
+    /** Name of the tag to be fetched its info. */
+    var tagName = args[0];
+
+    const tag = await tags.findOne({ where: { name: tagName } });
+    if (!tag) {
+        return msg.channel.send(`I could not find \`${tagName}\` in the list.`)
+            .then(reply => reply.delete({ timeout: 7500, reason: "Bot error A-NNA" }));
+    } else {
+        var tagAuthor = msg.guild.members.cache.find(member => member.id == tag.get('authorid'))
+        // HOW DO I DECLARE THIS???
+        // var tagCreatedAt: Sequelize.DateDataTypeConstructor = tag.get('created_at');
+        // console.log(tag.get('created_at'));
+        // console.log(typeof(tag.get('created_at')));
+        return msg.channel.send(
+            new Discord.MessageEmbed()
+                .setTitle(`Info on the tag '${tagName}'`)
+                .addField(`NAME`, `${tag.get('name')}\n`, true)
+                .addField(`USAGE COUNT`, `${tag.get('usage_count')}`, true)
+                .addField(`AUTHOR`, `${tagAuthor.user.username}#${tagAuthor.user.discriminator}`, true)
+                .addField(`CREATED AT`, `${tag.get('created_at')}`, true)
+                .addField(`CONTENT`, `${tag.get('content')}`, false)
+                .setColor(BotConf.embedColour)
+                .setAuthor(msg.author.username, msg.author.avatarURL())
+        );
+    };
+};

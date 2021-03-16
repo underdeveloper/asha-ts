@@ -1,5 +1,7 @@
 A-NNA : "Not Needed Anymore"
 -> The message is no longer needed and may subsequently be deleted.
-A-URR : "Un-Reasonable Request"
+A-URR : "UnReasonable Request"
 -> User request was unreasonable, i.e. does not satisfy the requirement needed for the function requested.
 -> This error message is then subsequently deleted.
+A-DBE : "DataBase Error"
+-> Something went wrong with a database.

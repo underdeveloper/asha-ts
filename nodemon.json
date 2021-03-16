@@ -1,4 +1,17 @@
 {
+  "watch": [""],
   "verbose": true,
-  "ignore": ["**.json", "**/src/", "**.txt", "**.md"]
+  "ignore": 
+  [
+    "**/docs/",
+    "**/node_modules/",
+    "**/src/",
+    "**/db/",
+    "**.json", 
+    "**.txt", 
+    "**.md", 
+    "**.sqlite",
+    "package-lock.json", 
+    "**.sqlite-journal"
+  ]
 }
