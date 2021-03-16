@@ -1,16 +1,31 @@
 {
   "name": "asha_ts",
   "version": "0.0.1",
-  "description": "Alexeyevna-Bot, now in TypeScript!",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "underdeveloper",
-  "license": "ISC",
-  "devDependencies": {
+  "description": "Alexeyevna-Bot, now in TypeScript.",
+  "main": "./src/index.ts",
+  "dependencies": {
+    "discord.js": "^12.5.1",
+    "express": "^4.17.1",
+    "glob": "^7.1.6",
+    "is-core-module": "^2.2.0",
+    "nodemon": "^2.0.7",
+    "resolve": "^1.20.0",
+    "rimraf": "^3.0.2",
     "tslint": "^6.1.3",
+    "ts-node": "^9.1.1",
     "typescript": "^4.2.3"
   },
-  "dependencies": {}
+  "devDependencies": {},
+  "scripts": {
+    "build": "rimraf ./res && tsc",
+    "start:dev": "npm run build && nodemon ./res/index.js",
+    "start": "npm run build && nodemon ./res/index.js",
+    "lint": "eslint . --ext .ts",
+    "test": "echo \"A\" && exit 1"
+  },
+  "keywords": [
+    "discordjs"
+  ],
+  "author": "underdeveloper",
+  "license": "ISC"
 }
