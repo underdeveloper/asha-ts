@@ -15,7 +15,11 @@
     "ts-node": "^9.1.1",
     "typescript": "^4.2.3"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@types/node": "^14.14.35",
+    "@types/ws": "^7.4.0",
+    "canvas": "^2.7.0"
+  },
   "scripts": {
     "build": "rimraf ./res && tsc",
     "start:dev": "npm run build && nodemon ./res/index.js",

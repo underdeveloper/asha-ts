@@ -1,0 +1,5 @@
+A-NNA : "Not Needed Anymore"
+-> The message is no longer needed and may subsequently be deleted.
+A-URR : "Un-Reasonable Request"
+-> User request was unreasonable, i.e. does not satisfy the requirement needed for the function requested.
+-> This error message is then subsequently deleted.
