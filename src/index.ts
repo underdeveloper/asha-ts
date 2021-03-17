@@ -100,6 +100,17 @@ Client.on('message', async msg => {
 
         // Admin privs only pls 
 
+        /** Caches previous 100 (default) messages. */
+        case `cache`:
+            var cacheCount: number;
+            if (isNaN(parseInt(args[0])) || parseInt(args[0]) <= 100) cacheCount = 100
+            else if (parseInt(args[0]) > 200) cacheCount = 200
+            else cacheCount = parseInt(args[0]);
+            msg.channel.messages.fetch({limit:cacheCount}).catch(console.error);
+            console.log(`Cached the previous ${cacheCount} messages in [${msg.guild.name}] #${msg.channel.name}.`);
+            if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({reason:"A-NNA"}).catch(console.error);
+            break;
+
         /** Bulk clear messages. */
         case `clear`:
         case `bulkclear`:
@@ -210,8 +221,8 @@ Client.on('message', async msg => {
                 }
                 else if (options.includes('-edit') || options.includes('-e')) {
                     ext.tagEdit(msg, args, Tags);
-                } else if (options.includes('-delete') || options.includes('-d')) {
-                    ext.tagDelete(msg, args, Tags);
+                } else if (options.includes('-remove') || options.includes('-r')) {
+                    ext.tagRemove(msg, args, Tags);
                 }
                 else ext.tagFetch(msg, args, Tags);
             }
@@ -223,4 +234,16 @@ Client.on('message', async msg => {
             
     };
 
+});
+
+Client.on("messageReactionAdd", async (reaction, user) => {
+    if (reaction.emoji.name === "📌") {
+        var pinChannel = reaction.message.guild.channels.cache.find(channel => channel.name === "pins" && channel.type === "text");
+        if (!pinChannel) return;
+        else if (reaction.message.reactions.cache.get("📌").count > 1) return;
+        else if (reaction.message.content === "" && reaction.message.attachments.size === 0) return;
+        // @ts-expect-error
+        else ext.pintoPinChannel(reaction, user, pinChannel);
+        console.log(`[${reaction.message.guild.name}] ${user.username} just pinned a message.`);
+    }
 });

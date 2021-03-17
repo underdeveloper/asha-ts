@@ -427,19 +427,19 @@ export async function tagEdit
     }
 };
 
-export async function tagDelete
+export async function tagRemove
     (
         msg: Discord.Message, args: string[],
     /** Table to be looked through. */ tags: Sequelize.ModelCtor<Sequelize.Model<any, any>>
     ) {
 
-    /** Name of the tag to be deleted. */
+    /** Name of the tag to be removed. */
     var tagName = args[0];
 
     try {
         const affectedRows = await tags.destroy({ where: { name: tagName, authorid: msg.author.id } });
         if (affectedRows > 0) {
-            return msg.channel.send(`Your tag \`${tagName}\` has been deleted.`);
+            return msg.channel.send(`Your tag \`${tagName}\` has been removed.`);
         } else {
             return msg.channel.send(`There is no tag called \`${tagName}\`, or if there is, you do not own it.`)
                 .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
@@ -491,7 +491,10 @@ export async function tagInfo
         return msg.channel.send(`I could not find \`${tagName}\` in the list.`)
             .then(reply => reply.delete({ timeout: 7500, reason: "Bot error A-NNA" }));
     } else {
-        var tagAuthor = msg.guild.members.cache.find(member => member.id == tag.get('authorid'))
+        var tagAuthor: Discord.GuildMember = msg.guild.members.cache.find(member => member.id == tag.get('authorid'));
+        // @ts-expect-error
+        var content: string = tag.get('content');
+        if (content.length > 1024) content = content.substr(0,1021) + "...";
         // HOW DO I DECLARE THIS???
         // var tagCreatedAt: Sequelize.DateDataTypeConstructor = tag.get('created_at');
         // console.log(tag.get('created_at'));
@@ -503,9 +506,53 @@ export async function tagInfo
                 .addField(`USAGE COUNT`, `${tag.get('usage_count')}`, true)
                 .addField(`AUTHOR`, `${tagAuthor.user.username}#${tagAuthor.user.discriminator}`, true)
                 .addField(`CREATED AT`, `${tag.get('created_at')}`, true)
-                .addField(`CONTENT`, `${tag.get('content')}`, false)
+                .addField(`CONTENT`, content, false)
                 .setColor(BotConf.embedColour)
                 .setAuthor(msg.author.username, msg.author.avatarURL())
         );
     };
 };
+
+// Pinning / starboard capabilities.
+
+export async function pintoPinChannel
+(
+    pinReaction: Discord.MessageReaction,
+    pinUser: Discord.User | Discord.PartialUser,
+    pinChannel: Discord.TextChannel
+) { 
+    var pinContent = pinReaction.message.content;
+    var pinEmbed = new Discord.MessageEmbed()
+        // .setTitle(`Direct link`)
+        // .setURL(reaction.message.url)
+        .setFooter((pinContent.length<1?`Blank? The original might have contained a video file. \n`:``) + `Pinned by ${pinUser.username}#${pinUser.discriminator}.`)
+        .setAuthor(pinReaction.message.author.username, pinReaction.message.author.avatarURL())
+        .setColor(BotConf.embedColour)
+        .setDescription(pinContent + `\n\n[**JUMP to original message.**](${pinReaction.message.url} 'you think you're funny?')`)
+        .setTimestamp()
+    var attachment = pinReaction.message.attachments.size > 0 ? pinReaction.message.attachments.array()[0] : null;
+    if (attachment) pinEmbed.setImage(attachment.url);
+    await pinChannel.send(pinEmbed).then(async pinMessage => {
+        await pinMessage.react('❌');
+        const filter = (user: Discord.User) => user.id === pinUser.id;
+        const collectorThis = new Discord.ReactionCollector(pinMessage, filter, { time: 60000, dispose: true });
+        var deleteFlag = false;
+        collectorThis.on("collect", async (reaction) => {
+            if (reaction.emoji.name === '❌') {
+                deleteFlag = true;
+                collectorThis.stop();
+            }
+        });
+        collectorThis.on("end", async () => {
+            if (!deleteFlag) await pinMessage.reactions.removeAll()
+            else {
+                await pinMessage.delete();
+                if (pinReaction.message.guild.me.hasPermission('MANAGE_MESSAGES') && !pinUser.partial) {
+                    // @ts-expect-error
+                    pinReaction.users.remove(pinUser).catch(console.error);
+                };
+
+            }
+        });
+    });
+}
