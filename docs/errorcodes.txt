@@ -5,3 +5,5 @@ A-URR : "UnReasonable Request"
 -> This error message is then subsequently deleted.
 A-DBE : "DataBase Error"
 -> Something went wrong with a database.
+A-ENF : "Emote Not Found"
+-> Something went wrong when searching for an emoji in the client emoji cache.

@@ -197,6 +197,149 @@ export async function pager
         });
 };
 
+/** Clears out a certain number of messages above the user. */
+export async function bulkClear(client: Discord.Client, msg: Discord.Message, args: string[]) {
+    if (!msg.member.hasPermission('MANAGE_MESSAGES')) {
+        msg.reply("You can't do that.")
+            .then(message => message.delete({ timeout: 5000, reason: "A-URR" }))
+    }
+    else if (!msg.guild.me.hasPermission('MANAGE_MESSAGES')) {
+        msg.reply("I can't do that.")
+            .then(message => message.delete({ timeout: 5000, reason: "A-URR" }))
+    }
+    else if (!args[0] || isNaN(parseInt(args[0]))) {
+        msg.channel.send(`Repeat message with how many messages you'd like me to clear. e.g. \`${BotConf.prefix}clear 5\``)
+            .then(message => message.delete({ timeout: 5000, reason: "A-URR" }))
+    }
+    else {
+        //@ts-expect-error
+        msg.channel.bulkDelete(parseInt(args[0]) + 1).catch(console.error);
+        return msg.channel.send(`Cleared ${args[0]} messages.`)
+            .then(message => message.delete({ timeout: 5000, reason: "Bot delete message A-NNA" }))
+            .catch(console.error);
+    };
+};
+
+// The horrid world of emojis.
+export function findEmote
+(
+    client: Discord.Client,
+    emoteName: string,
+    oldest: boolean = true // If false, will find youngest.
+): Discord.GuildEmoji | null {
+    var emojisSameName: Discord.GuildEmoji[] = client.emojis.cache.filter(emoji => emoji.name === emoteName).array();
+    if (emojisSameName.length < 1) return null;
+    else if (emojisSameName.length === 1) return emojisSameName[0];
+    else {
+        /** What will eventually be returned by the function. */
+        var foundEmoji: Discord.GuildEmoji = emojisSameName[0];
+        emojisSameName.shift();
+        emojisSameName.forEach(emoji => {
+            if (emoji.createdTimestamp < foundEmoji.createdTimestamp && oldest) foundEmoji = emoji
+            else if (emoji.createdTimestamp > foundEmoji.createdTimestamp && !oldest) foundEmoji = emoji;
+        })
+        return foundEmoji;
+    };
+
+};
+
+function listEmotes
+(
+    client: Discord.Client,
+    /** Whether or not static emotes are included. */ includeStatic: boolean
+) {
+    /** Array of all emotes that will be returned. */
+    var allEmojis: Discord.GuildEmoji[];
+
+    if (includeStatic) {
+        allEmojis = client.emojis.cache.map(emoji => emoji);
+    } else {
+        allEmojis = client.emojis.cache.filter(emoji => emoji.animated).array();
+    };
+    
+    return allEmojis;
+};
+
+export async function sendEmote
+(
+    client: Discord.Client,
+    msg: Discord.Message,
+    args: string[],
+    oldest: boolean = true
+) {
+    var emoteMsg = ``, argCount = 0, reached2000 = false;
+    var newArgs = args.join(" ").replace(/(?:\r\n|\r|\n)/g, ' \n ').split(" ");
+
+    while (argCount < newArgs.length && !reached2000) {
+
+        var emote = findEmote(client, newArgs[argCount], oldest);
+
+        if (!emote) emoteMsg += newArgs[argCount] + " ";
+        else emoteMsg += emote.toString() + " ";
+
+        if (emoteMsg.length > 2000) reached2000 = true
+        else argCount += 1;
+    };
+
+    emoteMsg = emoteMsg.substr(0, emoteMsg.lastIndexOf(" "));
+    emoteMsg = emoteMsg.replace(/(?:\r\n|\r|\n )/g, '\n');
+
+    msg.channel.send(emoteMsg).catch(console.error);
+};
+
+export async function sendEmoteList
+(
+    client: Discord.Client,
+    msg: Discord.Message,
+    includeStatic: boolean = true
+) {
+    var emotesStr = `This is a list of all emotes stored in my database:\n`, i = 0;
+    var emotesArray = listEmotes(client, includeStatic);
+    for (i; i < emotesArray.length; i++) {
+        emotesStr += `- ${emotesArray[i]} ${emotesArray[i].name}${i === emotesArray.length - 1 ? '' : '\n'}`
+    }
+    var emotePages = embedPager(client, msg, emotesStr, "Global emote list.", 10, '\n');
+    pager(client, msg, emotePages);
+    return;
+};
+
+export async function reactToMessage
+(
+    client: Discord.Client, msg: Discord.Message, args: string[]
+) {
+    // Finding the emote to react with.
+    var emote = findEmote(client, args[0]);
+    if (!emote) {
+        return msg.channel.send(`Don't seem to have an emote named \`${args[0]}\`, mister.`)
+            .then(reply => reply.delete({ timeout: 7500, reason: "A-ENF" }))
+    } else {
+        // Finding which message to react to.
+        var amount = (isNaN(parseInt(args[1])) ? 1 : parseInt(args[1])) + 1
+        if (amount > 31) {
+            return msg.channel.send(`Sorry, I can't go that far back. Maximum is 30 messages in the past.`)
+                .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+        }
+        else {
+            return msg.channel.messages.fetch({ limit: amount })
+                .then(messages => {
+                    let reacted = Array.from(messages.values())[amount - 1];
+                    reacted.react(emote).catch(console.error);
+                    const filter = (reaction: Discord.MessageReaction, user: Discord.User) => user === msg.author && reaction.emoji.id === emote.id;
+                    const collectorThis = new Discord.ReactionCollector(reacted, filter, { time: 60000, dispose: true });
+                    collectorThis.on("collect", reaction => {
+                        if (reaction.emoji.id === emote.id) {
+                            reaction.users.remove(client.user);
+                            if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) msg.delete().catch(console.error);
+                            collectorThis.stop()
+                        }
+                        return;
+                    });
+                    collectorThis.on("end", () => {return});
+                })
+                .catch(console.error);
+        }
+    }
+};
 
 // The wonderful world of tags.
 
