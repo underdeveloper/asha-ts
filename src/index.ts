@@ -79,12 +79,12 @@ Client.on('message', async msg => {
     };
 
     // Logs when a command is detected.
-    console.log(`[${msg.guild.name}] #${msg.channel.name} ${msg.author.username} invoked '${cmd}' ${(options.length>0)? `with option arguments: ${options}`:``} just now.`);
+    console.log(`[${msg.guild.name}] #${msg.channel.name} ${msg.author.username} invoked '${cmd}' ${(options.length>0)? `with option arguments: ${options}`:``}just now.`);
 
     // Switch cases of the commands that the user sent.
     switch (cmd) {
 
-        // Short, operational-related commands.
+        // Short, utility-related commands.
 
         /** Ping! */
         case `ping`:
@@ -98,49 +98,23 @@ Client.on('message', async msg => {
             await msg.channel.send(msg.content);
             break;
 
-        // Admin privs only pls 
-
-        /** Caches previous 100 (default) messages. */
+        /** Caches previous50 (default) messages. */
         case `cache`:
             var cacheCount: number;
-            if (isNaN(parseInt(args[0])) || parseInt(args[0]) <= 100) cacheCount = 100
+            if (isNaN(parseInt(args[0])) || parseInt(args[0]) <= 50) cacheCount = 50
             else if (parseInt(args[0]) > 200) cacheCount = 200
             else cacheCount = parseInt(args[0]);
-            msg.channel.messages.fetch({limit:cacheCount}).catch(console.error);
+            msg.channel.messages.fetch({ limit: cacheCount }).catch(console.error);
             console.log(`Cached the previous ${cacheCount} messages in [${msg.guild.name}] #${msg.channel.name}.`);
-            if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({reason:"A-NNA"}).catch(console.error);
+            if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({ reason: "A-NNA" }).catch(console.error);
             break;
+
+        // Admin privs only pls 
 
         /** Bulk clear messages. */
         case `clear`:
         case `bulkclear`:
             ext.bulkClear(Client, msg, args);
-            break;
-
-        /** Setting activity! */
-        case `activity`:
-            const types = ["PLAYING", "WATCHING", "LISTENING"];
-            if (msg.author.id !== '519030001216258082') {
-                msg.react(ext.findEmote(Client, 'NOPERS'));
-                return;
-            } else if (args.length < 1) {
-                msg.react(ext.findEmote(Client, 'SHUTUPSTOPIT'));
-                Client.user.setActivity(`in version ${BotConf.version}.`, { type: "PLAYING" })
-                    .then(presence => console.log(`Activity set to "PLAYING ${presence.activities[0].name}"`));
-            } else if (types.includes(args[0].toUpperCase())) {
-                msg.react(ext.findEmote(Client, 'NODDERS'));
-                // @ts-expect-error
-                Client.user.setActivity(args.slice(1).join(' '), { type: args[0].toUpperCase() });
-            } else if (args[0].toLowerCase() === `servercount`) {
-                msg.react(ext.findEmote(Client, 'NODDERS'));
-                Client.user.setActivity(`in ${Client.guilds.cache.size} guilds.`, { type: "PLAYING" })
-                    .then(presence => console.log(`Activity set to "${args[0].toUpperCase()} ${presence.activities[0].name}"`))
-            } else {
-                msg.react(ext.findEmote(Client, 'NODDERS'));
-                Client.user.setActivity(args.join(' '), { type: "PLAYING" })
-                    .then(presence => console.log(`Activity set to "PLAYING ${presence.activities[0].name}"`));
-            };
-            if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({ timeout: 5000, reason: "A-NNA" }).catch(console.error);
             break;
 
         // Funky functions!
@@ -229,9 +203,43 @@ Client.on('message', async msg => {
             break;
 
         default:
-            console.log(` ...but no such command exists.`);
+            if (msg.author.id !== BotConf.ownerID) console.log(` ...but no such command exists.`);
             break;
             
+    };
+
+    if (msg.author.id === BotConf.ownerID) {
+
+        switch (cmd) {
+
+            /** Setting activity! */
+            case `activity`:
+                ext.setActivity(Client, msg, args);
+                break;
+
+            /** Setting nickname! */
+            case `nick`:
+            case `nickname`:
+                ext.setNickname(Client, msg, args);
+                break;
+
+            /** Checks the uptime of the bot! */
+            case `uptime`:
+                var uptime = ext.checkUptime(Client);
+                await msg.channel.send(`I have been running for ${uptime}.`);
+                break;
+            
+            case `kill`:
+                var uptime = ext.checkUptime(Client);
+                await msg.channel.send(`Na, bis bald. Logging out now.\nFinal uptime: ${uptime}.`);
+                console.log(`I have logged out. I ran for ${uptime} before stopping.`);
+                Client.destroy();
+                break;
+
+            default:
+                console.log(` ...but no such command exists.`);
+                break;
+        }
     };
 
 });

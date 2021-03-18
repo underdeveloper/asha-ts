@@ -22,3 +22,4 @@ The properties in that JSON file are:
 - "token" : The bot's Discord App API token.
 - "embedColour" : What colour it uses for message embeds.
 - "version" : What version it currently is in.
+- "ownerID" : The user ID of the bot owner.

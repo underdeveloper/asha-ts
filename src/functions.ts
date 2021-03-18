@@ -3,7 +3,7 @@ import BotConf from "./botconf.json";
 import Canvas from "canvas";
 import Sequelize from "sequelize";
 
-// Local functions.
+// !! Local functions. !!
 
 /** Does a "Word Wrap" on a piece of text, up to maxWidth characters long. */
 function wordWrap (str: string, maxWidth: number = 64) {
@@ -101,7 +101,21 @@ function embedPager
     return embedPageArray;
 }
 
-// Exported functions.
+//** Converts miliseconds into the much more managable HHMMMSS, in array format. */
+function msToHHMMSS(miliseconds: number) {
+
+    var seconds = (Math.floor(miliseconds / 1000) % 60),
+        minutes = (Math.floor(miliseconds / (1000 * 60)) % 60),
+        hours = (Math.floor(miliseconds / (1000 * 60 * 60)));
+
+    var strHours = (hours < 10) ? `0${hours}` : `${hours}`,
+        strMinutes = (minutes < 10) ? `0${minutes}` : `${minutes}`,
+        strSeconds = (seconds < 10) ? `0${seconds}` : `${seconds}`;
+
+    return [strHours, strMinutes, strSeconds];
+};
+
+// !! Exported functions. !!
 
 /** Adds a black arial text caption onto an image sent by the requester. */
 export async function caption (client: Discord.Client, msg: Discord.Message, args: string[], spoiler: Boolean): Promise<void> {
@@ -145,6 +159,7 @@ export async function caption (client: Discord.Client, msg: Discord.Message, arg
     return;
 };
 
+/** Creates "pages" out of an array of somethings. */
 export async function pager
     (
         client: Discord.Client,
@@ -220,7 +235,58 @@ export async function bulkClear(client: Discord.Client, msg: Discord.Message, ar
     };
 };
 
+/** Sets activity of the bot. */
+export async function setActivity (client: Discord.Client, msg: Discord.Message, args: string[]) {
+    const types = ["PLAYING", "WATCHING", "LISTENING"];
+    if (args.length < 1) {
+        client.user.setActivity(`in version ${BotConf.version}.`, { type: "PLAYING" })
+            .then(presence => console.log(`Activity set to "PLAYING ${presence.activities[0].name}"`));
+    } else if (types.includes(args[0].toUpperCase())) {
+        // @ts-expect-error
+        client.user.setActivity(args.slice(1).join(' '), { type: args[0].toUpperCase() });
+    } else if (args[0].toLowerCase() === `servercount`) {
+        client.user.setActivity(`in ${client.guilds.cache.size} guilds.`, { type: "PLAYING" })
+            .then(presence => console.log(`Activity set to "${args[0].toUpperCase()} ${presence.activities[0].name}"`))
+    } else {
+        client.user.setActivity(args.join(' '), { type: "PLAYING" })
+            .then(presence => console.log(`Activity set to "PLAYING ${presence.activities[0].name}"`));
+    };
+}
+
+/** Sets nickname of the bot in the guild. */
+export async function setNickname (client: Discord.Client, msg: Discord.Message, args: string[]) {
+    var clientMember = msg.guild.members.cache.get(client.user.id), newNick = args.join(' ');
+
+    if (newNick.length < 1) {
+        clientMember.setNickname(`asha_ts@${BotConf.version}`);
+        // @ts-expect-error
+        // The channel is always never a DMChannel.
+         console.log(`Nickname in [${msg.guild.name}] #${msg.channel.name} changed to "${clientMember.nickname}"`);
+    } else if (newNick.length > 32) {
+        msg.channel.send(`That's over 32 characters long, sorry love.`)
+            .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+    } else{
+        try {
+            clientMember.setNickname(`${newNick}`);
+            // @ts-expect-error
+            // The channel is always never a DMChannel.
+            console.log(`Nickname in [${msg.guild.name}] #${msg.channel.name} changed to "${clientMember.nickname}"`)
+        } catch (e) {
+            // Could be because there are unwanted characters in the string, or if the string was too long.
+            msg.channel.send(`Oops, an error logged. I can't do that.`)
+                .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+        };
+    };
+}
+
+/** Checks the uptime of the bot, returns HH:MM:SS */
+export function checkUptime (client: Discord.Client) : string {
+    var uptime = msToHHMMSS(client.uptime);
+    return `${uptime[0]}:${uptime[1]}:${uptime[2]}`;
+}
+
 // The horrid world of emojis.
+
 export function findEmote
 (
     client: Discord.Client,
