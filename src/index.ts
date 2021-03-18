@@ -79,7 +79,7 @@ Client.on('message', async msg => {
     };
 
     // Logs when a command is detected.
-    console.log(`[${msg.guild.name}] #${msg.channel.name} ${msg.author.username} invoked '${cmd}' ${(options.length>0)? `with option arguments: ${options}`:``}just now.`);
+    console.log(`[${msg.guild.name}] #${msg.channel.name} ${msg.author.username} invoked '${cmd}'${(options.length>0)? ` with option arguments: ${options} `:` `}just now.`);
 
     // Switch cases of the commands that the user sent.
     switch (cmd) {
@@ -95,7 +95,7 @@ Client.on('message', async msg => {
         
         /** Echo! */
         case `echo`:
-            await msg.channel.send(msg.content);
+            await msg.channel.send(args.join(' '));
             break;
 
         /** Caches previous50 (default) messages. */
@@ -203,45 +203,36 @@ Client.on('message', async msg => {
             break;
 
         default:
-            if (msg.author.id !== BotConf.ownerID) console.log(` ...but no such command exists.`);
+            if (msg.author.id !== BotConf.ownerID) console.log(` ...but no such command exists.`)
+            else {
+                // Owner privs only pls
+                switch (cmd) {
+                    /** Setting activity! */
+                    case `activity`:
+                        ext.setActivity(Client, msg, args);
+                        break;
+                    /** Setting nickname! */
+                    case `nick`:
+                    case `nickname`:
+                        ext.setNickname(Client, msg, args);
+                        break;
+                    /** Checks the uptime of the bot! */
+                    case `uptime`:
+                        var uptime = ext.checkUptime(Client);
+                        await msg.channel.send(`I have been running for ${uptime}.`);
+                        break;
+                    case `kill`:
+                        var uptime = ext.checkUptime(Client);
+                        await msg.channel.send(`Na, bis bald. Logging out now.\nFinal uptime: ${uptime}.`);
+                        console.log(`I have logged out. I ran for ${uptime} before stopping.`);
+                        Client.destroy();
+                        break;
+                    default:
+                        console.log(` ...but no such command exists.`);
+                };
             break;
+        };
             
-    };
-
-    // Owner privs... heh
-
-    if (msg.author.id === BotConf.ownerID) {
-
-        switch (cmd) {
-
-            /** Setting activity! */
-            case `activity`:
-                ext.setActivity(Client, msg, args);
-                break;
-
-            /** Setting nickname! */
-            case `nick`:
-            case `nickname`:
-                ext.setNickname(Client, msg, args);
-                break;
-
-            /** Checks the uptime of the bot! */
-            case `uptime`:
-                var uptime = ext.checkUptime(Client);
-                await msg.channel.send(`I have been running for ${uptime}.`);
-                break;
-            
-            case `kill`:
-                var uptime = ext.checkUptime(Client);
-                await msg.channel.send(`Na, bis bald. Logging out now.\nFinal uptime: ${uptime}.`);
-                console.log(`I have logged out. I ran for ${uptime} before stopping.`);
-                Client.destroy();
-                break;
-
-            default:
-                console.log(` ...but no such command exists.`);
-                break;
-        }
     };
 
 });
