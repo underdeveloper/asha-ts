@@ -56,7 +56,7 @@ Client.login(BotConf.token);
 /* Runs at the beginning */
 Client.once('ready', () => {
     // Logs login data into console.
-    console.log(`This is ${NameVer}}!`);
+    console.log(`This is ${NameVer}!`);
     Client.user.setActivity(`TypeScript`, { type: "PLAYING" })
         .then(presence => console.log(`Activity set to "${presence.activities[0].name}"`));
     console.log(`Currently in ${Client.guilds.cache.size} servers.`);

@@ -425,7 +425,7 @@ export async function tagFetch
         if (tag.get('attachment') === null) return msg.channel.send(tag.get('content'))
         else {
             /** Attachment within tag. */
-            var tagAttachment = new Discord.MessageAttachment(`${tag.get('attachment')}`, `${tag.get('name')}.png`);
+            var tagAttachment = new Discord.MessageAttachment(`${tag.get('attachment')}`);
             return msg.channel.send(tag.get('content'), tagAttachment)
         }
     };
