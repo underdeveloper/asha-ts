@@ -14,25 +14,36 @@ const NameVer = `asha_ts@${BotConf.version}`;
 
 /* Database madness! */
 /** Constructor for the Sequelize database used in this program. */
-const Sqz = new Sequelize.Sequelize('database', 'user', 'password', {
+const Sqz = new Sequelize.Sequelize('asha-db', 'alekha', 'pASSword', {
     host: 'localhost',
     dialect: 'sqlite',
     logging: false,
-    storage: './db/database.sqlite'
+    storage: './db/asha-db.sqlite'
 });
 /**  Tags table for the tag command. */
 const Tags = Sqz.define('tags', {
+    /** Name of tag */
     name: {
         type: Sequelize.STRING,
         unique: true,
     },
+    /** Content of tag */
     content: Sequelize.TEXT,
+    /** URL of attachment */
+    attachment: {
+        type: Sequelize.TEXT,
+        defaultValue: null,
+        allowNull: true
+    },
+    /** ID of tag author */
     authorid: Sequelize.INTEGER,
+    /** Count of how many times tag has been called */
     usage_count: {
         type: Sequelize.INTEGER,
         defaultValue: 0,
         allowNull: false,
     },
+    /** Timestamp for when tag was created */
     created_at: {
         type: Sequelize.DATE
     }

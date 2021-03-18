@@ -421,7 +421,13 @@ export async function tagFetch
             .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
     } else {
         tag.increment('usage_count');
-        return msg.channel.send(tag.get('content'));
+
+        if (tag.get('attachment') === null) return msg.channel.send(tag.get('content'))
+        else {
+            /** Attachment within tag. */
+            var tagAttachment = new Discord.MessageAttachment(`${tag.get('attachment')}`, `${tag.get('name')}.png`);
+            return msg.channel.send(tag.get('content'), tagAttachment)
+        }
     };
 
 };
@@ -436,6 +442,9 @@ export async function tagAdd
     var tagName = args[0];
     args.shift();
 
+    /** First attachment of the message. */
+    var tagAttachment = msg.attachments.size > 0 ? msg.attachments.array()[0].url : null;
+
     if (args.length < 1) {
         msg.channel.send(`Can't do that, mate. The text you sent is literally empty.`)
             .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
@@ -445,6 +454,7 @@ export async function tagAdd
         const tag = await tags.create({
             name: tagName,
             content: args.join(' '),
+            attachment: tagAttachment,
             authorid: msg.author.id,
             created_at: msg.createdAt
         });
@@ -573,6 +583,7 @@ export async function tagInfo
                 .addField(`AUTHOR`, `${tagAuthor.user.username}#${tagAuthor.user.discriminator}`, true)
                 .addField(`CREATED AT`, `${tag.get('created_at')}`, true)
                 .addField(`CONTENT`, content, false)
+                .setImage(`${tag.get('attachment')}`)
                 .setColor(BotConf.embedColour)
                 .setAuthor(msg.author.username, msg.author.avatarURL())
         );
