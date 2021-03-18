@@ -177,7 +177,7 @@ export async function pager
             const filter = (reaction: Discord.MessageReaction, user: Discord.User) => (user.id === msg.author.id) && (menu.includes(reaction.emoji.name));
             // Collectors. I fucking hate javascript.
             var stop = 0; // 0 => deletes message, 1 => stops paginator (does not delete)
-            const collector = new Discord.ReactionCollector(react_msg, filter, { time: 120000, dispose: true });
+            const collector = new Discord.ReactionCollector(react_msg, filter, { time: 180000, dispose: true });
             collector.on("collect", (reaction: Discord.MessageReaction, user: Discord.User) => {
                 switch (reaction.emoji.name) {
                     case '⬅':
@@ -258,19 +258,19 @@ export async function setNickname (client: Discord.Client, msg: Discord.Message,
     var clientMember = msg.guild.members.cache.get(client.user.id), newNick = args.join(' ');
 
     if (newNick.length < 1) {
-        clientMember.setNickname(`asha_ts@${BotConf.version}`);
+        await clientMember.setNickname(`asha_ts@${BotConf.version}`);
         // @ts-expect-error
         // The channel is always never a DMChannel.
-         console.log(`Nickname in [${msg.guild.name}] #${msg.channel.name} changed to "${clientMember.nickname}"`);
+         console.log(`Nickname in [${msg.guild.name}] #${msg.channel.name} changed to "${newNick}"`);
     } else if (newNick.length > 32) {
         msg.channel.send(`That's over 32 characters long, sorry love.`)
             .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
     } else{
         try {
-            clientMember.setNickname(`${newNick}`);
+            await clientMember.setNickname(`${newNick}`);
             // @ts-expect-error
             // The channel is always never a DMChannel.
-            console.log(`Nickname in [${msg.guild.name}] #${msg.channel.name} changed to "${clientMember.nickname}"`)
+            console.log(`Nickname in [${msg.guild.name}] #${msg.channel.name} changed to "${newNick}"`)
         } catch (e) {
             // Could be because there are unwanted characters in the string, or if the string was too long.
             msg.channel.send(`Oops, an error logged. I can't do that.`)
@@ -581,8 +581,10 @@ export async function tagInfo
 
 // Pinning / starboard capabilities.
 
+/** Main pinning function. */
 export async function pintoPinChannel
 (
+    client: Discord.Client,
     pinReaction: Discord.MessageReaction,
     pinUser: Discord.User | Discord.PartialUser,
     pinChannel: Discord.TextChannel
@@ -599,26 +601,25 @@ export async function pintoPinChannel
     var attachment = pinReaction.message.attachments.size > 0 ? pinReaction.message.attachments.array()[0] : null;
     if (attachment) pinEmbed.setImage(attachment.url);
     await pinChannel.send(pinEmbed).then(async pinMessage => {
-        await pinMessage.react('❌');
-        const filter = (user: Discord.User) => user.id === pinUser.id;
-        const collectorThis = new Discord.ReactionCollector(pinMessage, filter, { time: 60000, dispose: true });
-        var deleteFlag = false;
-        collectorThis.on("collect", async (reaction) => {
+        console.log(`[${pinReaction.message.guild.name}] ${pinUser.username} just pinned a message.`);
+        await pinMessage.react('❌').catch(console.error);
+        var deleteFlag: boolean = false;
+        const filter = (reaction: Discord.MessageReaction, user: Discord.User) => user === pinUser && reaction.emoji.name === '❌';
+        const collector = new Discord.ReactionCollector(pinMessage, filter, { time: 60000, dispose: true });
+        collector.on("collect", async reaction => {
             if (reaction.emoji.name === '❌') {
+                reaction.users.remove(client.user);
                 deleteFlag = true;
-                collectorThis.stop();
+                collector.stop();
             }
+            return;
         });
-        collectorThis.on("end", async () => {
-            if (!deleteFlag) await pinMessage.reactions.removeAll()
-            else {
-                await pinMessage.delete();
-                if (pinReaction.message.guild.me.hasPermission('MANAGE_MESSAGES') && !pinUser.partial) {
-                    // @ts-expect-error
-                    pinReaction.users.remove(pinUser).catch(console.error);
-                };
-
-            }
+        collector.on("end", async () => {
+            if (deleteFlag) {
+                console.log(`[${pinReaction.message.guild.name}] ${pinUser.username} redacted a message pin.`);
+                pinMessage.delete({ reason: "A-NNA" });
+            };
         });
+        
     });
 }

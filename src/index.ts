@@ -208,6 +208,8 @@ Client.on('message', async msg => {
             
     };
 
+    // Owner privs... heh
+
     if (msg.author.id === BotConf.ownerID) {
 
         switch (cmd) {
@@ -250,8 +252,10 @@ Client.on("messageReactionAdd", async (reaction, user) => {
         if (!pinChannel) return;
         else if (reaction.message.reactions.cache.get("📌").count > 1) return;
         else if (reaction.message.content === "" && reaction.message.attachments.size === 0) return;
-        // @ts-expect-error
-        else ext.pintoPinChannel(reaction, user, pinChannel);
-        console.log(`[${reaction.message.guild.name}] ${user.username} just pinned a message.`);
+        else {
+            // @ts-expect-error
+            // Say pinChannel is always a TextChannel.
+            ext.pintoPinChannel(Client, reaction, user, pinChannel);
+        }
     }
 });
