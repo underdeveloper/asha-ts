@@ -575,18 +575,17 @@ export async function tagInfo
         // var tagCreatedAt: Sequelize.DateDataTypeConstructor = tag.get('created_at');
         // console.log(tag.get('created_at'));
         // console.log(typeof(tag.get('created_at')));
-        return msg.channel.send(
-            new Discord.MessageEmbed()
-                .setTitle(`Info on the tag '${tagName}'`)
-                .addField(`NAME`, `${tag.get('name')}\n`, true)
-                .addField(`USAGE COUNT`, `${tag.get('usage_count')}`, true)
-                .addField(`AUTHOR`, `${tagAuthor.user.username}#${tagAuthor.user.discriminator}`, true)
-                .addField(`CREATED AT`, `${tag.get('created_at')}`, true)
-                .addField(`CONTENT`, content, false)
-                .setImage(`${tag.get('attachment')}`)
-                .setColor(BotConf.embedColour)
-                .setAuthor(msg.author.username, msg.author.avatarURL())
-        );
+        var tagInfo = new Discord.MessageEmbed()
+            .setTitle(`Info on the tag '${tagName}'`)
+            .addField(`NAME`, `${tag.get('name')}\n`, true)
+            .addField(`USAGE COUNT`, `${tag.get('usage_count')}`, true)
+            .addField(`AUTHOR`, `${tagAuthor.user.username}#${tagAuthor.user.discriminator}`, true)
+            .addField(`CREATED AT`, `${tag.get('created_at')}`, true)
+            .addField(`CONTENT`, content, false)
+            .setColor(BotConf.embedColour)
+            .setAuthor(msg.author.username, msg.author.avatarURL());
+        if (tag.get('attachment')) tagInfo.setImage(`${tag.get('attachment')}`);
+        return msg.channel.send(tagInfo);
     };
 };
 
@@ -619,7 +618,6 @@ export async function pintoPinChannel
         const collector = new Discord.ReactionCollector(pinMessage, filter, { time: 60000, dispose: true });
         collector.on("collect", async reaction => {
             if (reaction.emoji.name === '❌') {
-                reaction.users.remove(client.user);
                 deleteFlag = true;
                 collector.stop();
             }
@@ -629,7 +627,10 @@ export async function pintoPinChannel
             if (deleteFlag) {
                 console.log(`[${pinReaction.message.guild.name}] ${pinUser.username} redacted a message pin.`);
                 pinMessage.delete({ reason: "A-NNA" });
-            };
+            }
+            else {
+                pinMessage.reactions.removeAll();
+            }
         });
         
     });

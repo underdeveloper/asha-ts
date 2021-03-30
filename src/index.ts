@@ -99,9 +99,8 @@ Client.on('message', async msg => {
 
         /** Ping! */
         case `ping`:
-            await msg.channel.send(`Pinging, hold on...`).then(sent => {
-                sent.edit(`Pong. Took ${sent.createdTimestamp - msg.createdTimestamp}ms.`);
-            }).catch(console.error);
+            var sent = await msg.channel.send(`Pinging, hold on...`);
+            await msg.channel.send(`Pong. Took ${sent.createdTimestamp - msg.createdTimestamp}ms.`);
             break;
         
         /** Echo! */
