@@ -9,6 +9,7 @@ import BotConf from "./botconf.json";
 import * as ext from "./functions";
 
 /* Constants, etc */
+/** Discord client of the bot. */
 const Client = new Discord.Client({disableMentions: "everyone"});
 const NameVer = `asha_ts@${BotConf.version}`;
 
@@ -48,7 +49,6 @@ const Tags = Sqz.define('tags', {
         type: Sequelize.DATE
     }
 });
-
 
 /* Client login */
 Client.login(BotConf.token);
@@ -162,8 +162,11 @@ Client.on('message', async msg => {
                     .then(reply => reply.delete({ timeout: 7500, reason: "Bot error A-URR" })).catch(console.error);
                 return;
             }
+            else if (args.length==1) {
+                await ext.searchEmote(Client, msg, args[0]);
+            } 
             else {
-                await ext.sendEmote(Client, msg, args);
+                await ext.sendEmoteBulk(Client, msg, args);
                 if (options.includes(`-delete`) || options.includes(`-d`)) {
                     if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({ reason: "A-NNA" }).catch(console.error);
                 };

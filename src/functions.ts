@@ -2,6 +2,7 @@ import Discord from "discord.js";
 import BotConf from "./botconf.json";
 import Canvas from "canvas";
 import Sequelize from "sequelize";
+import StringSimilarity from "string-similarity";
 
 // !! Local functions. !!
 
@@ -287,6 +288,7 @@ export function checkUptime (client: Discord.Client) : string {
 
 // The horrid world of emojis.
 
+/** Tries to find an emote with a certain name in the client's emoji cache, and returns it if found. If not, returns null. */
 export function findEmote
 (
     client: Discord.Client,
@@ -309,10 +311,11 @@ export function findEmote
 
 };
 
+/** Returns an array of names of all emotes in the client's emojis cache. */
 function listEmotes
 (
     client: Discord.Client,
-    /** Whether or not static emotes are included. */ includeStatic: boolean
+    /** Whether or not static emotes are included. */ includeStatic: boolean = true
 ) {
     /** Array of all emotes that will be returned. */
     var allEmojis: Discord.GuildEmoji[];
@@ -326,7 +329,30 @@ function listEmotes
     return allEmojis;
 };
 
-export async function sendEmote
+/** Searches for a single emote in the client's emojis cache, and sends a message containing it if found. 
+ * If not found, then sends a message with the most similar emote names.
+ */
+export async function searchEmote
+(
+    client: Discord.Client,
+    msg: Discord.Message,
+    name: string,
+    oldest: boolean = true
+) {
+    var emote = findEmote(client, name, oldest);
+
+    if (!emote) {
+        var emoteNameList: string[] = listEmotes(client).map(emoji=>emoji.name);
+        var matches = StringSimilarity.findBestMatch(name, emoteNameList);
+        matches.ratings.sort((a,b)=> b.rating - a.rating);
+        var topThreeEmotes: string[] = matches.ratings.slice(0, 3).map(rating => rating.target);
+        msg.channel.send(`I couldn't find an emote named ${name}, though you might be looking for one of these: \`${topThreeEmotes.join('`, `')}\`.`).catch(console.error);
+    }
+    else msg.channel.send(`${emote}`).catch(console.error);
+};
+
+/** Gets an array of emote names and tries to send a message with emotes of those same names. */
+export async function sendEmoteBulk
 (
     client: Discord.Client,
     msg: Discord.Message,
