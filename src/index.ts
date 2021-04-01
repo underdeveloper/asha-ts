@@ -24,20 +24,20 @@ const Sqz = new Sequelize.Sequelize('asha-db', 'alekha', 'pASSword', {
 });
 /**  Tags table for the tag command. */
 const Tags = Sqz.define('tags', {
-    /** Name of tag */
+    /** Name of tag. */
     name: {
         type: Sequelize.STRING,
         unique: true,
     },
-    /** Content of tag */
+    /** Content of tag. */
     content: Sequelize.TEXT,
-    /** URL of attachment */
+    /** URL of attachment. */
     attachment: {
         type: Sequelize.TEXT,
         defaultValue: null,
         allowNull: true
     },
-    /** ID of tag author */
+    /** ID of tag author. */
     authorid: Sequelize.INTEGER,
     /** Count of how many times tag has been called */
     usage_count: {
@@ -45,16 +45,16 @@ const Tags = Sqz.define('tags', {
         defaultValue: 0,
         allowNull: false,
     },
-    /** Timestamp for when tag was created */
+    /** Timestamp for when tag was created. */
     created_at: {
         type: Sequelize.DATE
     }
 });
 
-/* Client login */
+/* Client login. */
 Client.login(BotConf.token);
 
-/* Runs at the beginning */
+/* Runs at the beginning. */
 Client.once('ready', () => {
     // Logs login data into console.
     console.log(`This is ${NameVer}!`);
@@ -76,87 +76,50 @@ Client.on('message', async msg => {
     if (!msg.content.startsWith(BotConf.prefix)) return; // Doesn't start with the prefix? No.
     if (msg.channel.type === "dm") return; // Is a DM? No, wait, how did you even get here?
 
-    var currentCmd = cmd.extract(msg, BotConf.prefix);
+    var currentReq = cmd.extract(msg, BotConf.prefix);
+    var currentCtx = new cmd.CommandContext(Client, msg, msg.guild);
 
     // Logs when a command is detected.
-    console.log(`[${msg.guild.name}] #${msg.channel.name} ${msg.author.username} invoked '${currentCmd.name}'${(currentCmd.options.length>0)? ` with option arguments: ${currentCmd.options} `:` `}just now.`);
+    console.log(`[${msg.guild.name}] #${msg.channel.name} ${msg.author.username} invoked '${currentReq.name}'${(currentReq.options.length>0)? ` with option arguments: ${currentReq.options} `:` `}just now.`);
+
+    // Trying to execute the commands.
+    var status: [boolean, string] = cmd.execute(currentCtx, currentReq);
+    if (!status[0]) return console.log(`Tried to execute command, but failed. Log: \"${status[1]}\"`);
 
     // Switch cases of the commands that the user sent.
-    switch (currentCmd.name) {
-
-        // Short, utility-related commands.
-
-        /** Ping! */
-        case `ping`:
-            var sent = await msg.channel.send(`Pinging, hold on...`);
-            await msg.channel.send(`Pong. Took ${sent.createdTimestamp - msg.createdTimestamp}ms.`);
-            break;
-        
-        /** Echo! */
-        case `echo`:
-            await msg.channel.send(currentCmd.args.join(' '));
-            break;
-
-        /** Caches previous50 (default) messages. */
-        case `cache`:
-            var cacheCount: number;
-            if (isNaN(parseInt(currentCmd.args[0])) || parseInt(currentCmd.args[0]) <= 50) cacheCount = 50
-            else if (parseInt(currentCmd.args[0]) > 200) cacheCount = 200
-            else cacheCount = parseInt(currentCmd.args[0]);
-            msg.channel.messages.fetch({ limit: cacheCount }).catch(console.error);
-            console.log(`Cached the previous ${cacheCount} messages in [${msg.guild.name}] #${msg.channel.name}.`);
-            if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({ reason: "A-NNA" }).catch(console.error);
-            break;
+    switch (currentReq.name) {
 
         // Admin privs only pls 
 
         /** Bulk clear messages. */
         case `clear`:
         case `bulkclear`:
-            ext.bulkClear(Client, msg, currentCmd.args);
+            ext.bulkClear(Client, msg, currentReq.args);
             break;
 
         // Funky functions!
-
-        /** Adds a caption onto the image. */
-        case `caption`:
-            if (msg.attachments.size < 1) {
-                await msg.channel.send(`What am I supposed to caption, exactly?`)
-                    .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
-                return;
-            } else if (currentCmd.args.length < 1) {
-                await msg.channel.send(`What text am I supposed to put on this?`)
-                    .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
-                return;
-            };
-            var spoiler: boolean = false;
-            if (currentCmd.options.includes('-spoiler') || currentCmd.options.includes('-s')) {
-                spoiler = true;
-            };
-            ext.caption(Client, msg, currentCmd.args, spoiler);
-            break;
 
         /** Emote functionality. */
         case `e`:
         case `emote`:
         case `emoji`:
-            if (currentCmd.options.includes('-list') || currentCmd.options.includes('-l')) {
-                await ext.sendEmoteList(Client, msg, (currentCmd.options.includes('-animated') || currentCmd.options.includes('-anim')?false:true));
-                if (currentCmd.options.includes(`-delete`) || currentCmd.options.includes(`-d`)) {
+            if (currentReq.options.includes('-list') || currentReq.options.includes('-l')) {
+                await ext.sendEmoteList(Client, msg, (currentReq.options.includes('-animated') || currentReq.options.includes('-anim')?false:true));
+                if (currentReq.options.includes(`-delete`) || currentReq.options.includes(`-d`)) {
                     if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({ reason: "A-NNA" }).catch(console.error);
                 };
             }
-            else if (currentCmd.args.length<1) {
+            else if (currentReq.args.length<1) {
                 msg.channel.send(`I need something to work with here, add an emote name after the command.`)
                     .then(reply => reply.delete({ timeout: 7500, reason: "Bot error A-URR" })).catch(console.error);
                 return;
             }
-            else if (currentCmd.args.length==1) {
-                await ext.searchEmote(Client, msg, currentCmd.args[0]);
+            else if (currentReq.args.length==1) {
+                await ext.searchEmote(Client, msg, currentReq.args[0]);
             } 
             else {
-                await ext.sendEmoteBulk(Client, msg, currentCmd.args);
-                if (currentCmd.options.includes(`-delete`) || currentCmd.options.includes(`-d`)) {
+                await ext.sendEmoteBulk(Client, msg, currentReq.args);
+                if (currentReq.options.includes(`-delete`) || currentReq.options.includes(`-d`)) {
                     if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({ reason: "A-NNA" }).catch(console.error);
                 };
             };
@@ -165,63 +128,58 @@ Client.on('message', async msg => {
         /** React functionality. */
         case `r`:
         case `react`:
-            if (currentCmd.args.length < 1) {
+            if (currentReq.args.length < 1) {
                 msg.channel.send(`I need something to work with here, add an emote name after the command.`)
                     .then(reply => reply.delete({ timeout: 7500, reason: "Bot error A-URR" })).catch(console.error);
                 return;
             }
             else {
-                await ext.reactToMessage(Client, msg, currentCmd.args);
+                await ext.reactToMessage(Client, msg, currentReq.args);
             };
             break;
 
         /** Tag functionality. */
         case `t`:
         case `tag`:
-            if (currentCmd.options.includes('-add') || currentCmd.options.includes('-a')) {
-                if (currentCmd.args[0].length < 3) {
+            if (currentReq.options.includes('-add') || currentReq.options.includes('-a')) {
+                if (currentReq.args[0].length < 3) {
                     return msg.channel.send(`The tag name needs to be longer than 2 characters long.`)
                         .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
                 }
-                ext.tagAdd(msg, currentCmd.args, Tags);
-            } else if (currentCmd.options.includes('-list') || currentCmd.options.includes('-l')) {
-                ext.tagList(Client, msg, currentCmd.args, Tags);
+                ext.tagAdd(msg, currentReq.args, Tags);
+            } else if (currentReq.options.includes('-list') || currentReq.options.includes('-l')) {
+                ext.tagList(Client, msg, currentReq.args, Tags);
             }
             else {
-                if (currentCmd.args.length < 1) {
+                if (currentReq.args.length < 1) {
                     return msg.channel.send(`You typed blank, love, I need something to work with here.`)
                         .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
                 }
-                else if (currentCmd.options.includes('-info') || currentCmd.options.includes('-i')) {
-                    ext.tagInfo(Client, msg, currentCmd.args, Tags);
+                else if (currentReq.options.includes('-info') || currentReq.options.includes('-i')) {
+                    ext.tagInfo(Client, msg, currentReq.args, Tags);
                 }
-                else if (currentCmd.options.includes('-edit') || currentCmd.options.includes('-e')) {
-                    ext.tagEdit(msg, currentCmd.args, Tags);
-                } else if (currentCmd.options.includes('-remove') || currentCmd.options.includes('-r')) {
-                    ext.tagRemove(msg, currentCmd.args, Tags);
+                else if (currentReq.options.includes('-edit') || currentReq.options.includes('-e')) {
+                    ext.tagEdit(msg, currentReq.args, Tags);
+                } else if (currentReq.options.includes('-remove') || currentReq.options.includes('-r')) {
+                    ext.tagRemove(msg, currentReq.args, Tags);
                 }
-                else ext.tagFetch(msg, currentCmd.args, Tags);
+                else ext.tagFetch(msg, currentReq.args, Tags);
             }
             break;
 
         default:
-            if (msg.author.id !== BotConf.ownerID) console.log(` ...but no such command exists.`)
+            if (msg.author.id !== BotConf.ownerID) return;
             else {
                 // Owner privs only pls
-                switch (currentCmd.name) {
+                switch (currentReq.name) {
                     /** Setting activity! */
                     case `activity`:
-                        ext.setActivity(Client, msg, currentCmd.args);
+                        ext.setActivity(Client, msg, currentReq.args);
                         break;
                     /** Setting nickname! */
                     case `nick`:
                     case `nickname`:
-                        ext.setNickname(Client, msg, currentCmd.args);
-                        break;
-                    /** Checks the uptime of the bot! */
-                    case `uptime`:
-                        var uptime = ext.checkUptime(Client);
-                        await msg.channel.send(`I have been running for ${uptime}.`);
+                        ext.setNickname(Client, msg, currentReq.args);
                         break;
                     case `kill`:
                         var uptime = ext.checkUptime(Client);
@@ -230,7 +188,8 @@ Client.on('message', async msg => {
                         Client.destroy();
                         break;
                     default:
-                        console.log(` ...but no such command exists.`);
+                        // console.log(` ...but no such command exists.`);
+                        return;
                 };
             break;
         };
