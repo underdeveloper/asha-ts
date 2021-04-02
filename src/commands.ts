@@ -248,7 +248,7 @@ var allCommands: CommandFunction[] =
         new React()
     ];
 
-/** Tries to execute a command requested by a user. 
+/** The command handler. Tries to execute a command requested by a user. 
  * @param {CommandContext} context - The context where the request was sent.
  * @param {CommandRequest} request - A request sent by a user via a command call.
  * @returns A pair of two values: a boolean and a string. The boolean value is true when the command is executed,

@@ -1,6 +1,6 @@
 {
   "name": "asha_ts",
-  "version": "0.0.7",
+  "version": "0.1.1",
   "description": "Alexeyevna-Bot, now in TypeScript.",
   "main": "./src/index.ts",
   "dependencies": {
