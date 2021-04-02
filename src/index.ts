@@ -2,7 +2,6 @@
 
 /* Dependencies and external JSONs */
 import Discord from "discord.js";
-import Sequelize from "sequelize";
 import BotConf from "./botconf.json";
 
 /* External modules */
@@ -12,7 +11,6 @@ import * as cmd from "./commands";
 /* Constants, etc */
 /** Discord client of the bot. */
 const Client = new Discord.Client({disableMentions: "everyone"});
-const NameVer = `asha_ts@${BotConf.version}`;
 
 /* Client login. */
 Client.login(BotConf.token);
@@ -20,7 +18,7 @@ Client.login(BotConf.token);
 /* Runs at the beginning. */
 Client.once('ready', () => {
     // Logs login data into console.
-    console.log(`This is ${NameVer}!`);
+    console.log(`This is asha_ts@${BotConf.version}!`);
     Client.user.setActivity(`TypeScript`, { type: "PLAYING" })
         .then(presence => console.log(`Activity set to "${presence.activities[0].name}"`));
     console.log(`Currently in ${Client.guilds.cache.size} servers.`);

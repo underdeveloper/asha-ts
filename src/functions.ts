@@ -102,7 +102,7 @@ function embedPager
     return embedPageArray;
 }
 
-//** Converts miliseconds into the much more managable HHMMMSS, in array format. */
+/** Converts miliseconds into the much more managable HHMMMSS, in array format. */
 function msToHHMMSS(miliseconds: number) {
 
     var seconds = (Math.floor(miliseconds / 1000) % 60),
@@ -258,19 +258,15 @@ export async function setNickname (client: Discord.Client, msg: Discord.Message,
     var clientMember = msg.guild.members.cache.get(client.user.id), newNick = args.join(' ');
 
     if (newNick.length < 1) {
-        await clientMember.setNickname(`asha_ts@${BotConf.version}`);
-        // @ts-expect-error
-        // The channel is always never a DMChannel.
-         console.log(`Nickname in [${msg.guild.name}] #${msg.channel.name} changed to "${newNick}"`);
+        await clientMember.setNickname(`alexeyevna`);
+         console.log(`Nickname in [${msg.guild.name}] changed to "${newNick}"`);
     } else if (newNick.length > 32) {
         msg.channel.send(`That's over 32 characters long, sorry love.`)
             .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
     } else{
         try {
             await clientMember.setNickname(`${newNick}`);
-            // @ts-expect-error
-            // The channel is always never a DMChannel.
-            console.log(`Nickname in [${msg.guild.name}] #${msg.channel.name} changed to "${newNick}"`)
+            console.log(`Nickname in [${msg.guild.name}] changed to "${newNick}"`)
         } catch (e) {
             // Could be because there are unwanted characters in the string, or if the string was too long.
             msg.channel.send(`Oops, an error logged. I can't do that.`)
@@ -378,6 +374,7 @@ export async function sendEmoteBulk
     msg.channel.send(emoteMsg).catch(console.error);
 };
 
+/** Sends a pager of all of the emotes that is available on a certain context. */
 export async function sendEmoteList
 (
     client: Discord.Client,
@@ -394,6 +391,7 @@ export async function sendEmoteList
     return;
 };
 
+/** Reacts to a specific message with a requested emote. */
 export async function reactToMessage
 (
     client: Discord.Client, msg: Discord.Message, args: string[]
@@ -433,6 +431,7 @@ export async function reactToMessage
 
 // The wonderful world of tags.
 
+/** Fetches a tag from the database. */
 export async function tagFetch
     (
         msg: Discord.Message, args: string[], 
@@ -456,6 +455,7 @@ export async function tagFetch
 
 };
 
+/** Adds a tag into the database. */
 export async function tagAdd
     (
         msg: Discord.Message, args: string[], 
@@ -497,6 +497,7 @@ export async function tagAdd
     }
 };
 
+/** Edits an existing tag within the database. */
 export async function tagEdit
     (
         msg: Discord.Message, args: string[],
@@ -527,6 +528,7 @@ export async function tagEdit
     }
 };
 
+/** Removes a tag from the userbase. */
 export async function tagRemove
     (
         msg: Discord.Message, args: string[],
@@ -551,6 +553,7 @@ export async function tagRemove
     }
 };
 
+/** Gives a pager of all the tags within the database. */
 export async function tagList
     (
         client: Discord.Client,
@@ -576,6 +579,7 @@ export async function tagList
     return;
 };
 
+/** Fetches the information associated with a tag on the database. */
 export async function tagInfo
     (
         client: Discord.Client,
@@ -615,7 +619,7 @@ export async function tagInfo
 
 // Pinning / starboard capabilities.
 
-/** Main pinning function. */
+/** Creates an embed containing the content of a certain message, and 'pins' it to a channel specifically for pinning messages. */
 export async function pintoPinChannel
 (
     client: Discord.Client,
