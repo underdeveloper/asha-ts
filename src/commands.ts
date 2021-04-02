@@ -1,8 +1,44 @@
 import Discord from "discord.js";
-import { clear } from "node:console";
-import { isConstructorDeclaration } from "typescript";
+import Sequelize from "sequelize";
 import BotConf from "./botconf.json";
 import * as ext from "./functions";
+
+/* Database madness! */
+/** Constructor for the Sequelize database used in this program. */
+const Sqz = new Sequelize.Sequelize('asha-db', 'alekha', 'pASSword', {
+    host: 'localhost',
+    dialect: 'sqlite',
+    logging: false,
+    storage: './db/asha-db.sqlite'
+});
+/**  Tags table within Sqz. */
+export const Tags = Sqz.define('tags', {
+    /** Name of tag. */
+    name: {
+        type: Sequelize.STRING,
+        unique: true,
+    },
+    /** Content of tag. */
+    content: Sequelize.TEXT,
+    /** URL of attachment. */
+    attachment: {
+        type: Sequelize.TEXT,
+        defaultValue: null,
+        allowNull: true
+    },
+    /** ID of tag author. */
+    authorid: Sequelize.INTEGER,
+    /** Count of how many times tag has been called */
+    usage_count: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0,
+        allowNull: false,
+    },
+    /** Timestamp for when tag was created. */
+    created_at: {
+        type: Sequelize.DATE
+    }
+});
 
 /** The context of a command. */
 export class CommandContext {
@@ -60,15 +96,18 @@ export class CommandFunction {
     name: string;
     /** Help message for the command. */
     help: string;
-    /** Specifies whether this command is limited only to the bot owner or not. */
-    restricted: boolean;
     /** Aliases, if they exist, for the command. Must be unique. */
     aliases: string[];
+    /** Specifies whether this command's request will be automatically deleted or not. */
+    autoDel: boolean;
+    /** Specifies whether this command is limited only to the bot owner or not. */
+    restricted: boolean;
 
-    constructor(name: string, help: string, aliases: string[] = [], restricted: boolean = false) {
+    constructor(name: string, help: string, aliases: string[] = [], autoDel: boolean = false, restricted: boolean = false) {
         this.name = name;
         this.help = help;
         this.aliases = aliases;
+        this.autoDel = autoDel;
         this.restricted = restricted;
     };
 
@@ -100,7 +139,7 @@ class Ping extends CommandFunction {
 
 class Echo extends CommandFunction {
     constructor() {
-        super("echo", "Echoes the given message back to the requester.")
+        super("echo", "Echoes the given message back to the requester.", [], true)
     }
     async run(ctx: CommandContext, req: CommandRequest) {
         if (req.args.length<1) return
@@ -110,13 +149,12 @@ class Echo extends CommandFunction {
 
 class Cache extends CommandFunction {
     constructor() {
-        super("cache", "Caches the last 100 messages in a given text channel.")
+        super("cache", "Caches the last 100 messages in a given text channel.", [], true)
     }
     async run(ctx: CommandContext, req: CommandRequest) {
         ctx.message.channel.messages.fetch({ limit: 100 }).catch(console.error);
         // @ts-expect-error The context is always within a TextChannel. DMChannel messages are ignored.
         console.log(`Cached the previous ${cacheCount} messages in [${ctx.message.guild.name}] #${ctx.message.channel.name}.`);
-        if (ctx.message.guild.me.hasPermission('MANAGE_MESSAGES')) await ctx.message.delete({ reason: "A-NNA" }).catch(console.error);
     }
 };
 
@@ -131,7 +169,7 @@ class Clear extends CommandFunction {
 
 class Uptime extends CommandFunction {
     constructor() {
-        super("uptime", "Returns the uptime of the current session in HH:MM:SS.", [], true)
+        super("uptime", "Returns the uptime of the current session in HH:MM:SS.", [], false, true)
     }
     async run(ctx: CommandContext, req: CommandRequest) {
         var uptime = ext.checkUptime(ctx.client);
@@ -153,7 +191,7 @@ class Kill extends CommandFunction {
 
 class Caption extends CommandFunction {
     constructor() {
-        super("caption", "Adds a caption to a static image.")
+        super("caption", "Adds a caption to a static image.", [], true)
     }
     async run(ctx: CommandContext, req: CommandRequest) {
         if (ctx.message.attachments.size < 1) {
@@ -193,7 +231,7 @@ class SetActivity extends CommandFunction {
 
 class Emote extends CommandFunction {
     constructor() {
-        super("emote", "Sends the appropriate emote(s) to a channel from a user's request.", ["e", "emoji"])
+        super("emote", "Sends the appropriate emote(s) to a channel from a user's request.", ["e", "emoji"], true)
     }
     async run(ctx: CommandContext, req: CommandRequest) {
         if (req.options.includes('-list') || req.options.includes('-l')) {
@@ -215,7 +253,7 @@ class Emote extends CommandFunction {
 
 class React extends CommandFunction {
     constructor() {
-        super("react", "Reacts to a specific message with an appropriate emote as requested by a user.", ["r"])
+        super("react", "Reacts to a specific message with an appropriate emote as requested by a user.", ["r"], true)
     }
     async run(ctx: CommandContext, req: CommandRequest) {
         if (req.args.length < 1) {
@@ -228,6 +266,38 @@ class React extends CommandFunction {
         };
     }
 };
+
+class Tag extends CommandFunction {
+    constructor() {
+        super("tag", "The tag functionality. It can store text and images in a database and called at any time during the uptime.")
+    }
+    async run(ctx: CommandContext, req: CommandRequest) {
+        if (req.options.includes('-add') || req.options.includes('-a')) {
+            if (req.args[0].length < 3) {
+                ctx.message.channel.send(`The tag name needs to be longer than 2 characters long.`)
+                    .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+            }
+            ext.tagAdd(ctx.message, req.args, Tags);
+        } else if (req.options.includes('-list') || req.options.includes('-l')) {
+            ext.tagList(ctx.client, ctx.message, req.args, Tags);
+        }
+        else {
+            if (req.args.length < 1) {
+                ctx.message.channel.send(`You typed blank, love, I need something to work with here.`)
+                    .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
+            }
+            else if (req.options.includes('-info') || req.options.includes('-i')) {
+                ext.tagInfo(ctx.client, ctx.message, req.args, Tags);
+            }
+            else if (req.options.includes('-edit') || req.options.includes('-e')) {
+                ext.tagEdit(ctx.message, req.args, Tags);
+            } else if (req.options.includes('-remove') || req.options.includes('-r')) {
+                ext.tagRemove(ctx.message, req.args, Tags);
+            }
+            else ext.tagFetch(ctx.message, req.args, Tags);
+        }
+    }
+}
 
 var allCommands: CommandFunction[] =
     [
@@ -262,6 +332,7 @@ export function execute(context: CommandContext, request: CommandRequest): [bool
     }
     else {
         command.run(context, request).catch(console.error);
+        if (command.autoDel && context.message.guild.me.hasPermission('MANAGE_MESSAGES')) context.message.delete({ reason: "A-NNA" }).catch(console.error);
         return [true, "Command ran successfully."]
     }
 };

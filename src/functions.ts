@@ -156,7 +156,6 @@ export async function caption (client: Discord.Client, msg: Discord.Message, arg
     var attachment = new Discord.MessageAttachment(canvas.toBuffer(), `${spoiler?`SPOILER_`:``}memefuny.png`);
     await msg.channel.send(`<@${msg.author.id}>`, attachment);
 
-    if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) await msg.delete({ reason: "A-NNA" }).catch(console.error);
     return;
 };
 
@@ -421,7 +420,6 @@ export async function reactToMessage
                     collectorThis.on("collect", reaction => {
                         if (reaction.emoji.id === emote.id) {
                             reaction.users.remove(client.user);
-                            if (msg.guild.me.hasPermission('MANAGE_MESSAGES')) msg.delete().catch(console.error);
                             collectorThis.stop()
                         }
                         return;

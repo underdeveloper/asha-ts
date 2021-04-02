@@ -14,43 +14,6 @@ import * as cmd from "./commands";
 const Client = new Discord.Client({disableMentions: "everyone"});
 const NameVer = `asha_ts@${BotConf.version}`;
 
-/* Database madness! */
-/** Constructor for the Sequelize database used in this program. */
-const Sqz = new Sequelize.Sequelize('asha-db', 'alekha', 'pASSword', {
-    host: 'localhost',
-    dialect: 'sqlite',
-    logging: false,
-    storage: './db/asha-db.sqlite'
-});
-/**  Tags table for the tag command. */
-const Tags = Sqz.define('tags', {
-    /** Name of tag. */
-    name: {
-        type: Sequelize.STRING,
-        unique: true,
-    },
-    /** Content of tag. */
-    content: Sequelize.TEXT,
-    /** URL of attachment. */
-    attachment: {
-        type: Sequelize.TEXT,
-        defaultValue: null,
-        allowNull: true
-    },
-    /** ID of tag author. */
-    authorid: Sequelize.INTEGER,
-    /** Count of how many times tag has been called */
-    usage_count: {
-        type: Sequelize.INTEGER,
-        defaultValue: 0,
-        allowNull: false,
-    },
-    /** Timestamp for when tag was created. */
-    created_at: {
-        type: Sequelize.DATE
-    }
-});
-
 /* Client login. */
 Client.login(BotConf.token);
 
@@ -62,8 +25,8 @@ Client.once('ready', () => {
         .then(presence => console.log(`Activity set to "${presence.activities[0].name}"`));
     console.log(`Currently in ${Client.guilds.cache.size} servers.`);
 
-    // Synchronises tables in the Sqz database.
-    Tags.sync();
+    // Synchronises tables in databases managed within this bot.
+    cmd.Tags.sync();
 });
 
 /* Main event loops */
@@ -83,35 +46,6 @@ Client.on('message', async msg => {
 
     // Logs when a command is detected.
     console.log(`[${msg.guild.name}] #${msg.channel.name} ${msg.author.username} invoked '${currentReq.name}'${(currentReq.options.length>0)? ` with option arguments: ${currentReq.options} `:` `}just now.`);
-
-    // Special command for the tag. I haven't figured out how to connect the database yet.
-    if (currentReq.name === "tag") {
-        if (currentReq.options.includes('-add') || currentReq.options.includes('-a')) {
-            if (currentReq.args[0].length < 3) {
-                return msg.channel.send(`The tag name needs to be longer than 2 characters long.`)
-                    .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
-            }
-            ext.tagAdd(msg, currentReq.args, Tags);
-        } else if (currentReq.options.includes('-list') || currentReq.options.includes('-l')) {
-            ext.tagList(Client, msg, currentReq.args, Tags);
-        }
-        else {
-            if (currentReq.args.length < 1) {
-                return msg.channel.send(`You typed blank, love, I need something to work with here.`)
-                    .then(reply => reply.delete({ timeout: 7500, reason: "A-URR" }));
-            }
-            else if (currentReq.options.includes('-info') || currentReq.options.includes('-i')) {
-                ext.tagInfo(Client, msg, currentReq.args, Tags);
-            }
-            else if (currentReq.options.includes('-edit') || currentReq.options.includes('-e')) {
-                ext.tagEdit(msg, currentReq.args, Tags);
-            } else if (currentReq.options.includes('-remove') || currentReq.options.includes('-r')) {
-                ext.tagRemove(msg, currentReq.args, Tags);
-            }
-            else ext.tagFetch(msg, currentReq.args, Tags);
-        }
-        return;
-    }
 
     // Trying to execute the command.
     /** The status of the command handler. */
