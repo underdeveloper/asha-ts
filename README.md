@@ -2,7 +2,7 @@
 
 This rendition of Alexeyevna has been deprecated, due to updates to the Discord.JS module. DJSv13 has rendered features of this code unusable and other updates to appendage modules have also made dangerous vulnerabilities. This repository is kept only for archival purposes.
 
-[LAST VERSION THIS CODE WORKED ON WAS DISCORD.JS V12.1
+[LAST VERSION THIS CODE WORKED ON WAS DISCORD.JS V12.1]
 
 ## Table of Contents
 
